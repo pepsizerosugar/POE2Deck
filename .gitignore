@@ -1,2 +1,4 @@
 .idea
 tasks.log
+__pycache__
+venv

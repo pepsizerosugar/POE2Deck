@@ -42,7 +42,7 @@ def generate_code_verifier() -> str:
     verifier = (
         base64.urlsafe_b64encode(os.urandom(32)).rstrip(b"=").decode("utf-8")
     )
-    logger.debug(f"생성된 code_verifier: {verifier}")
+    (f"생성된 code_verifier: {verifier}")
     return verifier
 
 
@@ -57,7 +57,7 @@ def generate_code_challenge(verifier: str) -> str:
         .rstrip(b"=")
         .decode("utf-8")
     )
-    logger.debug(f"생성된 code_challenge: {challenge}")
+    (f"생성된 code_challenge: {challenge}")
     return challenge
 
 
@@ -103,13 +103,13 @@ def get_access_token_and_user_id_from_api(
             "webdriver": bool(txid),
         }
 
-        logger.debug(f"Request body: {body}")
-        logger.debug(f"Session cookies: {session.cookies.get_dict()}")
+        (f"Request body: {body}")
+        (f"Session cookies: {session.cookies.get_dict()}")
 
         response = session.post(url, headers=headers, json=body)
         response.raise_for_status()
         data = response.json()
-        logger.debug(f"Response data: {data}")
+        (f"Response data: {data}")
 
         status = data.get("status")
         if status == "NEED_SECURITYCENTER_AUTH":
@@ -154,7 +154,7 @@ def process_user_security_auth(
     """
     try:
         driver.get(url)
-        logger.debug("유저 인증 진행 중...")
+        ("유저 인증 진행 중...")
 
         if wait_for_url_change(driver, SECURITY_URL):
             selenium_cookies = driver.get_cookies()
@@ -162,7 +162,7 @@ def process_user_security_auth(
 
             if wait_for_url_change(driver, GAME_START_URL):
                 current_url = driver.current_url
-                logger.debug(f"유저 인증 완료: {current_url}")
+                (f"유저 인증 완료: {current_url}")
 
                 parsed_url = urlparse(current_url)
                 query_params = parse_qs(parsed_url.query)
@@ -171,7 +171,7 @@ def process_user_security_auth(
                 selenium_cookies = driver.get_cookies()
                 set_cookies(session, selenium_cookies)
 
-                logger.debug(f"리다이렉트 감지: {current_url}")
+                (f"리다이렉트 감지: {current_url}")
                 return get_access_token_and_user_id_from_api(
                     driver, session, txid
                 )
@@ -191,19 +191,19 @@ def process_user_auth(
     """
     try:
         driver.get(GAME_START_URL)
-        logger.debug("유저 인증 페이지 로드 중...")
+        ("유저 인증 페이지 로드 중...")
 
         if wait_for_url_change(driver, GAME_START_URL):
             current_url = driver.current_url
-            logger.debug(f"current_url-1: {current_url}")
+            (f"current_url-1: {current_url}")
 
             if GAME_START_URL in current_url:
                 # 이미 인증 마친 상태, 혹은 카카오 인증으로 인증 필요로 하는 상태
-                logger.debug("유저 인증 완료 혹은 카카오 인증 필요")
+                ("유저 인증 완료 혹은 카카오 인증 필요")
                 return get_access_token_and_user_id_from_api(driver, session)
             elif SECURITY_URL in current_url:
                 # 인증 필요 상태
-                logger.debug("유저 인증 필요")
+                ("유저 인증 필요")
                 return process_user_security_auth(driver, session, current_url)
         else:
             logger.error("유저 인증 실패")
@@ -230,7 +230,7 @@ def get_authorization_code(
 
         if wait_for_url_change(driver, "https://poe2.game.daum.net/kr/home"):
             current_url = driver.current_url
-            logger.debug(f"리다이렉트 감지: {current_url}")
+            (f"리다이렉트 감지: {current_url}")
             session = create_session(driver)
             return process_user_auth(driver, session)
         else:

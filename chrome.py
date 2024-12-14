@@ -35,7 +35,7 @@ def kill_chrome_processes() -> None:
             "Chrome 프로세스를 종료하는 도중 오류 발생.", exc_info=e
         )
     else:
-        logger.debug("Chrome 프로세스가 정상적으로 종료되었습니다.")
+        ("Chrome 프로세스가 정상적으로 종료되었습니다.")
 
 
 def get_recent_chrome_profile() -> str:
@@ -43,7 +43,7 @@ def get_recent_chrome_profile() -> str:
     최근 사용된 Chrome 프로필 경로를 반환
     """
     profile_base = os.path.expanduser("~/.config/google-chrome")
-    logger.debug(f"Chrome 프로필 경로: {profile_base}")
+    (f"Chrome 프로필 경로: {profile_base}")
     return profile_base
 
 
@@ -57,5 +57,5 @@ def set_driver_with_recent_profile() -> webdriver.Chrome:
     service = Service("/usr/bin/chromedriver")
 
     driver = webdriver.Chrome(service=service, options=options)
-    logger.debug("Selenium WebDriver 초기화 완료.")
+    ("Selenium WebDriver 초기화 완료.")
     return driver

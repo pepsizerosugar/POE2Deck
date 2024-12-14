@@ -70,7 +70,7 @@ def get_shortcuts_vdf_path(user_id: str) -> str:
     """
     base_path = os.path.expanduser("~/.steam/steam/userdata")
     path = f"{base_path}/{user_id}/config/shortcuts.vdf"
-    logger.debug(f"shortcuts.vdf 경로: {path}")
+    (f"shortcuts.vdf 경로: {path}")
     return path
 
 
@@ -117,7 +117,7 @@ def update_shortcuts(
     try:
         with open(file_path, "rb") as file:
             shortcuts = vdf.binary_load(file)
-        logger.debug("shortcuts.vdf 로딩 성공.")
+        ("shortcuts.vdf 로딩 성공.")
     except Exception as e:
         logger.exception("shortcuts.vdf 로딩 중 오류 발생", exc_info=e)
         return False
@@ -130,8 +130,8 @@ def update_shortcuts(
             ) == game_name or "PathOfExile_x64_KG.exe" in (
                 game.get("exe", "") + game.get("StartDir", "")
             ):
-                logger.debug(f"key: {key}, game: {game}")
-                logger.debug(
+                (f"key: {key}, game: {game}")
+                (
                     f"{game_name} 또는 PathOfExile_x64_KG.exe를 포함한 게임 찾음. Launch Options 및 Proton 설정 업데이트."
                 )
                 game["LaunchOptions"] = launch_options or ""
@@ -222,19 +222,19 @@ def kill_steam_and_restart_background() -> bool:
         try:
             for _ in range(30):
                 if not is_process_running("steam"):
-                    logger.debug("Steam 프로세스가 정상적으로 종료되었습니다.")
+                    ("Steam 프로세스가 정상적으로 종료되었습니다.")
                     break
                 time.sleep(1)
             else:
                 logger.error("Steam 종료 확인에 실패했습니다.")
                 return False
 
-            logger.debug("Steam 프로세스를 백그라운드에서 재실행합니다...")
+            ("Steam 프로세스를 백그라운드에서 재실행합니다...")
             subprocess.run("steam &", shell=True, check=False)
 
             for _ in range(30):
                 if is_process_running("steam"):
-                    logger.debug("Steam이 정상적으로 재시작되었습니다.")
+                    ("Steam이 정상적으로 재시작되었습니다.")
                     break
                 time.sleep(1)
             else:

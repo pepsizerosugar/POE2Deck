@@ -28,7 +28,7 @@ def task_kill_chrome():
     """
     logger.info("Chrome 프로세스 종료 시도 중...")
     kill_chrome_processes()
-    logger.debug("Chrome 프로세스 종료 완료.")
+    ("Chrome 프로세스 종료 완료.")
     print("TASK_1=1")
 
 
@@ -45,8 +45,8 @@ def task_authorization():
         logger.error("인증 실패: access_token 또는 user_id가 없습니다.")
         print("TASK_2=0")
     else:
-        logger.debug(f"인증 성공: access_token: {access_token}")
-        logger.debug(f"획득한 user_id: {user_id}")
+        (f"인증 성공: access_token: {access_token}")
+        (f"획득한 user_id: {user_id}")
 
         print("TASK_2=1")
         print(f"ACCESS_TOKEN={access_token}")
@@ -64,7 +64,7 @@ def task_parse_steam_persona():
         logger.error("Steam 유저 데이터 가져오기.")
         print("TASK_3=0")
     else:
-        logger.debug(f"Steam 유저 데이터 가져오기 성공: {user_personas}")
+        (f"Steam 유저 데이터 가져오기 성공: {user_personas}")
         print("TASK_3=1")
         print("USER_PERSONAS=" + json.dumps(user_personas, ensure_ascii=False))
 
@@ -80,13 +80,13 @@ def task_update_shortcuts():
         sys.exit(1)
 
     access_token = sys.argv[2]
-    logger.debug(f"Shortcuts 업데이트 시 사용할 Access Token: {access_token}")
+    (f"Shortcuts 업데이트 시 사용할 Access Token: {access_token}")
 
     user_id = sys.argv[3]
-    logger.debug(f"Shortcuts 업데이트 시 사용할 User Id: {user_id}")
+    (f"Shortcuts 업데이트 시 사용할 User Id: {user_id}")
 
     user_persona = json.loads(sys.argv[4])
-    logger.debug(
+    (
         f"Shortcuts 업데이트 시 사용할 Steam user persona: {user_persona}"
     )
 
@@ -97,7 +97,7 @@ def task_update_shortcuts():
     )
 
     if result:
-        logger.debug("Shortcuts 업데이트 성공.")
+        ("Shortcuts 업데이트 성공.")
         print("TASK_4=1")
     else:
         logger.error("Shortcuts 업데이트 실패.")
@@ -113,7 +113,7 @@ def task_kill_steam_and_restart():
     result = kill_steam_and_restart_background()
 
     if result:
-        logger.debug("Steam 종료 후 재시작 성공.")
+        ("Steam 종료 후 재시작 성공.")
         print("TASK_5=1")
     else:
         logger.error("Steam 종료 후 재시작 실패.")
