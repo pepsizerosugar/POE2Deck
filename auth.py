@@ -1,17 +1,13 @@
 import base64
 import hashlib
+import logging
 import os
 import time
-import requests
-import logging
-import json
 from typing import Tuple, Optional, Dict
-from urllib.parse import urlparse, parse_qs, unquote
+from urllib.parse import urlparse, parse_qs
+
+import requests
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -21,6 +17,7 @@ logging.basicConfig(
     encoding="utf-8",
 )
 logger = logging.getLogger(__name__)
+
 
 def generate_code_verifier() -> str:
     """
@@ -55,30 +52,43 @@ def process_user_security_auth(driver, session, url):
         for _ in range(10):
             time.sleep(3)
             current_url: str = driver.current_url
-            logger.debug(f"process_user_security_auth current_url: {current_url}")
+            logger.debug(
+                f"process_user_security_auth current_url: {current_url}"
+            )
             if "https://security-center.game.daum.net/auth" in current_url:
                 logger.debug("security")
 
                 session = requests.Session()
                 selenium_cookies = driver.get_cookies()
                 for cookie in selenium_cookies:
-                    session.cookies.set(cookie['name'], cookie['value'])
+                    session.cookies.set(cookie["name"], cookie["value"])
 
                 while True:
                     _current_url = driver.current_url
                     logger.debug(f"_current_url: {_current_url}")
 
-                    if "https://pubsvc.game.daum.net/gamestart/poe2.html" in _current_url:
+                    if (
+                        "https://pubsvc.game.daum.net/gamestart/poe2.html"
+                        in _current_url
+                    ):
                         parsed_url = urlparse(current_url)
                         query_params = parse_qs(parsed_url.query)
-                        txid: Optional[str] = query_params.get("txId", [None])[0]
+                        txid: Optional[str] = query_params.get("txId", [None])[
+                            0
+                        ]
 
                         selenium_cookies = driver.get_cookies()
                         for cookie in selenium_cookies:
-                            session.cookies.set(cookie['name'], cookie['value'])
+                            session.cookies.set(
+                                cookie["name"], cookie["value"]
+                            )
 
-                        logger.debug(f"_current_url 리다이렉트 감지: {_current_url}")
-                        return get_access_token_and_user_id_from_api(driver, session, txid)
+                        logger.debug(
+                            f"_current_url 리다이렉트 감지: {_current_url}"
+                        )
+                        return get_access_token_and_user_id_from_api(
+                            driver, session, txid
+                        )
 
                     time.sleep(0.5)
         else:
@@ -89,9 +99,9 @@ def process_user_security_auth(driver, session, url):
     return None, None
 
 
-
-
-def get_access_token_and_user_id_from_api(driver, session, txid = None) -> Tuple[Optional[str], Optional[int]]:
+def get_access_token_and_user_id_from_api(
+    driver, session, txid=None
+) -> Tuple[Optional[str], Optional[int]]:
     """
     API를 통해 accessToken, userId 파싱
     """
@@ -104,7 +114,11 @@ def get_access_token_and_user_id_from_api(driver, session, txid = None) -> Tuple
             "origin": "https://pubsvc.game.daum.net",
         }
 
-        body = {"txId":txid,"code":None,"webdriver":False if not txid else True}
+        body = {
+            "txId": txid,
+            "code": None,
+            "webdriver": False if not txid else True,
+        }
 
         logger.debug(f"body: {body}")
         logger.debug(f"session cokkies: {session.cookies.get_dict()}")
@@ -143,7 +157,9 @@ def get_user_id_from_api(cookies: Dict[str, str]) -> Optional[int]:
             "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Whale/3.28.266.14 Safari/537.36",
             "referer": "https://poe2.game.daum.net/",
             "origin": "https://poe2.game.daum.net",
-            "cookie": "; ".join([f"{key}={value}" for key, value in cookies.items()]),
+            "cookie": "; ".join(
+                [f"{key}={value}" for key, value in cookies.items()]
+            ),
         }
 
         response = requests.get(url, headers=headers)
@@ -172,7 +188,7 @@ def process_user_auth(driver):
             session = requests.Session()
             selenium_cookies = driver.get_cookies()
             for cookie in selenium_cookies:
-                session.cookies.set(cookie['name'], cookie['value'])
+                session.cookies.set(cookie["name"], cookie["value"])
             logger.debug("pubsvc")
 
             return get_access_token_and_user_id_from_api(driver, session)
@@ -182,23 +198,30 @@ def process_user_auth(driver):
             session = requests.Session()
             selenium_cookies = driver.get_cookies()
             for cookie in selenium_cookies:
-                session.cookies.set(cookie['name'], cookie['value'])
+                session.cookies.set(cookie["name"], cookie["value"])
 
             while True:
                 _current_url = driver.current_url
                 logger.debug(f"_current_url: {_current_url}")
 
-                if "https://pubsvc.game.daum.net/gamestart/poe2.html" in _current_url:
+                if (
+                    "https://pubsvc.game.daum.net/gamestart/poe2.html"
+                    in _current_url
+                ):
                     parsed_url = urlparse(current_url)
                     query_params = parse_qs(parsed_url.query)
                     txid: Optional[str] = query_params.get("txId", [None])[0]
 
                     selenium_cookies = driver.get_cookies()
                     for cookie in selenium_cookies:
-                        session.cookies.set(cookie['name'], cookie['value'])
+                        session.cookies.set(cookie["name"], cookie["value"])
 
-                    logger.debug(f"_current_url 리다이렉트 감지: {_current_url}")
-                    return get_access_token_and_user_id_from_api(driver, session, txid)
+                    logger.debug(
+                        f"_current_url 리다이렉트 감지: {_current_url}"
+                    )
+                    return get_access_token_and_user_id_from_api(
+                        driver, session, txid
+                    )
 
                 time.sleep(0.5)
     else:
@@ -236,7 +259,6 @@ def get_authorization_code(
             return process_user_auth(driver)
         time.sleep(1)
 
-
     parsed_url = urlparse(current_url)
     query_params = parse_qs(parsed_url.query)
     auth_code: Optional[str] = query_params.get("code", [None])[0]
@@ -254,7 +276,9 @@ def get_authorization_code(
 
     # get_user_id_from_api(session_cookies)
 
-    access_token, user_id = get_access_token_and_user_id_from_api(session_cookies)
+    access_token, user_id = get_access_token_and_user_id_from_api(
+        session_cookies
+    )
 
     return access_token, user_id
 

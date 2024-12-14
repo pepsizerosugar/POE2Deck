@@ -1,10 +1,15 @@
-import sys
-import logging
 import json
+import logging
+import sys
 
 from auth import get_authorization_code, get_access_token
 from chrome import kill_chrome_processes, set_driver_with_recent_profile
-from steam import get_shortcuts_vdf_path, update_shortcuts, get_steam_user_personas, kill_steam_and_restart_background
+from steam import (
+    get_shortcuts_vdf_path,
+    update_shortcuts,
+    get_steam_user_personas,
+    kill_steam_and_restart_background,
+)
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -46,7 +51,6 @@ def task_authorization():
         print("TASK_2=1")
         print(f"ACCESS_TOKEN={access_token}")
         print(f"USER_ID={user_id}")
-
 
 
 def task_access_token():
@@ -95,10 +99,7 @@ def task_parse_steam_persona():
     else:
         logger.debug(f"Steam 유저 데이터 가져오기 성공: {user_personas}")
         print("TASK_4=1")
-        print(
-            "USER_PERSONAS="
-            + json.dumps(user_personas, ensure_ascii=False)
-        )
+        print("USER_PERSONAS=" + json.dumps(user_personas, ensure_ascii=False))
 
 
 def task_update_shortcuts():
@@ -118,7 +119,9 @@ def task_update_shortcuts():
     logger.debug(f"Shortcuts 업데이트 시 사용할 User Id: {user_id}")
 
     user_persona = json.loads(sys.argv[4])
-    logger.debug(f"Shortcuts 업데이트 시 사용할 Steam user persona: {user_persona}")
+    logger.debug(
+        f"Shortcuts 업데이트 시 사용할 Steam user persona: {user_persona}"
+    )
 
     result = update_shortcuts(
         file_path=get_shortcuts_vdf_path(next(iter(user_persona))),
@@ -147,7 +150,6 @@ def task_kill_steam_and_restart():
     else:
         logger.error("Steam 종료 후 재시작 실패.")
         print("TASK_6=0")
-
 
 
 if __name__ == "__main__":

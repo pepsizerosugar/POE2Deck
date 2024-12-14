@@ -1,11 +1,12 @@
-import os
 import logging
-import vdf
-import glob
-import psutil
+import os
 import subprocess
 import time
-from typing import Tuple, Optional, Dict
+from typing import Optional, Dict
+
+import psutil
+import vdf
+
 from util import is_command_available
 
 logging.basicConfig(
@@ -18,33 +19,47 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def get_steam_user_personas(steam_userdata_path: str = "~/.steam/steam/userdata") -> Dict[str, str]:
+def get_steam_user_personas(
+    steam_userdata_path: str = "~/.steam/steam/userdata",
+) -> Dict[str, str]:
     """
     모든 Steam 유저의 PersonaName을 반환
     """
     steam_userdata_path = os.path.expanduser(steam_userdata_path)
     if not os.path.exists(steam_userdata_path):
-        logger.error(f"Steam userdata 디렉토리를 찾을 수 없습니다: {steam_userdata_path}")
-        raise FileNotFoundError(f"Steam userdata 파일을 찾지 못했습니다.: {steam_userdata_path}")
+        logger.error(
+            f"Steam userdata 디렉토리를 찾을 수 없습니다: {steam_userdata_path}"
+        )
+        raise FileNotFoundError(
+            f"Steam userdata 파일을 찾지 못했습니다.: {steam_userdata_path}"
+        )
 
     user_personas = {}
 
     for user_id in os.listdir(steam_userdata_path):
         user_dir = os.path.join(steam_userdata_path, user_id)
         if os.path.isdir(user_dir) and user_id.isdigit():
-            localconfig_path = os.path.join(user_dir, "config", "localconfig.vdf")
+            localconfig_path = os.path.join(
+                user_dir, "config", "localconfig.vdf"
+            )
             if os.path.exists(localconfig_path):
                 try:
                     with open(localconfig_path, "r", encoding="utf-8") as file:
                         localconfig = vdf.load(file)
-                        persona_name = localconfig.get("UserLocalConfigStore", {}).get("friends").get("PersonaName")
+                        persona_name = (
+                            localconfig.get("UserLocalConfigStore", {})
+                            .get("friends")
+                            .get("PersonaName")
+                        )
                         if persona_name:
                             user_personas[user_id] = persona_name
                             logger.info(f"{user_id}: {persona_name} 발견")
                         else:
                             logger.warning(f"{user_id} 미발견")
                 except Exception as e:
-                    logger.error(f"{user_id}에 해당하는 localconfig.vdf를 찾지 못했습니다 : {e}")
+                    logger.error(
+                        f"{user_id}에 해당하는 localconfig.vdf를 찾지 못했습니다 : {e}"
+                    )
 
     return user_personas
 
@@ -66,7 +81,13 @@ def find_file_path(file_name: str, search_path: str = "/") -> Optional[str]:
     try:
         logger.info(f"{search_path} 하위에서 {file_name}을 찾습니다...")
         for root, dirs, files in os.walk(search_path):
-            dirs[:] = [d for d in dirs if not os.path.join(root, d).startswith(os.path.expanduser("~/.local/share/Trash"))]
+            dirs[:] = [
+                d
+                for d in dirs
+                if not os.path.join(root, d).startswith(
+                    os.path.expanduser("~/.local/share/Trash")
+                )
+            ]
             if file_name in files:
                 logger.info(f"파일 찾음: {os.path.join(root, file_name)}")
                 return os.path.join(root, file_name)
@@ -80,7 +101,7 @@ def update_shortcuts(
     game_name: str = "Path of Exile 2",
     launch_options: str = None,
     use_proton: bool = True,
-    proton_version: str = "proton_experimental"
+    proton_version: str = "proton_experimental",
 ) -> bool:
     """
     shortcuts.vdf에서 특정 게임의 Launch Options 업데이트
@@ -104,7 +125,11 @@ def update_shortcuts(
     updated = False
     try:
         for key, game in shortcuts.get("shortcuts", {}).items():
-            if game.get("appname") == game_name or "PathOfExile_x64_KG.exe" in (game.get("exe", "") + game.get("StartDir", "")):
+            if game.get(
+                "appname"
+            ) == game_name or "PathOfExile_x64_KG.exe" in (
+                game.get("exe", "") + game.get("StartDir", "")
+            ):
                 logger.debug(f"key: {key}, game: {game}")
                 logger.debug(
                     f"{game_name} 또는 PathOfExile_x64_KG.exe를 포함한 게임 찾음. Launch Options 및 Proton 설정 업데이트."
@@ -116,34 +141,42 @@ def update_shortcuts(
                 break
 
         if not updated:
-            logger.warning(f"{game_name} 또는 관련 exe를 포함한 게임을 찾을 수 없음.")
-            logger.info(f"{game_name}게임을 등록하기 위해 실행 파일 검색 시작.")
-            exe_path = find_file_path("PathOfExile_x64_KG.exe", search_path="/home/deck")
+            logger.warning(
+                f"{game_name} 또는 관련 exe를 포함한 게임을 찾을 수 없음."
+            )
+            logger.info(
+                f"{game_name}게임을 등록하기 위해 실행 파일 검색 시작."
+            )
+            exe_path = find_file_path(
+                "PathOfExile_x64_KG.exe", search_path="/home/deck"
+            )
             if not exe_path:
                 logger.error("PathOfExile_x64_KG.exe 파일을 찾을 수 없습니다.")
                 return False
 
-            logger.info(f"PathOfExile_x64_KG.exe 파일 위치를 찾아 등록을 추가합니다.")
+            logger.info(
+                f"PathOfExile_x64_KG.exe 파일 위치를 찾아 등록을 추가합니다."
+            )
 
             new_game = {
-                'appid': -1171664189,
-                'appname': 'Path of Exile 2',
-                'exe': f'"{exe_path}"',
-                'StartDir': os.path.dirname(exe_path),
-                'icon': '',
-                'ShortcutPath': '',
-                'LaunchOptions': launch_options or '',
-                'compat_tool': proton_version if use_proton else "",
-                'IsHidden': 0,
-                'AllowDesktopConfig': 1,
-                'AllowOverlay': 1,
-                'OpenVR': 0,
-                'Devkit': 0,
-                'DevkitGameID': '',
-                'DevkitOverrideAppID': 0,
-                'LastPlayTime': 0,
-                'FlatpakAppID': '',
-                'tags': {}
+                "appid": -1171664189,
+                "appname": "Path of Exile 2",
+                "exe": f'"{exe_path}"',
+                "StartDir": os.path.dirname(exe_path),
+                "icon": "",
+                "ShortcutPath": "",
+                "LaunchOptions": launch_options or "",
+                "compat_tool": proton_version if use_proton else "",
+                "IsHidden": 0,
+                "AllowDesktopConfig": 1,
+                "AllowOverlay": 1,
+                "OpenVR": 0,
+                "Devkit": 0,
+                "DevkitGameID": "",
+                "DevkitOverrideAppID": 0,
+                "LastPlayTime": 0,
+                "FlatpakAppID": "",
+                "tags": {},
             }
             shortcuts["shortcuts"][str(len(shortcuts["shortcuts"]))] = new_game
             logger.info("임시 게임 추가 성공.")
@@ -161,8 +194,8 @@ def is_process_running(process_name: str) -> bool:
     """
     특정 프로세스가 실행 중인지 확인
     """
-    for process in psutil.process_iter(attrs=['name']):
-        if process.info['name'] == process_name:
+    for process in psutil.process_iter(attrs=["name"]):
+        if process.info["name"] == process_name:
             return True
     return False
 
@@ -177,10 +210,14 @@ def kill_steam_and_restart_background() -> bool:
         elif is_command_available("taskkill"):
             subprocess.run(["taskkill", "/F", "/IM", "steam.exe"], check=False)
         else:
-            logger.error("이 운영 체제에서 Steam 프로세스를 종료할 수 없습니다.")
+            logger.error(
+                "이 운영 체제에서 Steam 프로세스를 종료할 수 없습니다."
+            )
             raise OSError("지원되지 않는 운영 체제입니다.")
     except subprocess.CalledProcessError as e:
-        logger.exception("Steam 프로세스를 종료하는 도중 오류 발생", exc_info=e)
+        logger.exception(
+            "Steam 프로세스를 종료하는 도중 오류 발생", exc_info=e
+        )
     else:
         try:
             for _ in range(30):
@@ -207,4 +244,3 @@ def kill_steam_and_restart_background() -> bool:
         except Exception as e:
             logger.exception("Steam 재시작 도중 오류 발생", exc_info=e)
             return False
-

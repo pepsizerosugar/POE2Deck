@@ -1,15 +1,12 @@
-import os
-import platform
-import shutil
-import subprocess
-import requests
-import zipfile
 import logging
-from util import is_command_available
-from pathlib import Path
+import os
+import subprocess
+
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+
+from util import is_command_available
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -29,12 +26,18 @@ def kill_chrome_processes() -> None:
         if is_command_available("killall"):
             subprocess.run(["killall", "chrome"], check=False)
         elif is_command_available("taskkill"):
-            subprocess.run(["taskkill", "/F", "/IM", "chrome.exe"], check=False)
+            subprocess.run(
+                ["taskkill", "/F", "/IM", "chrome.exe"], check=False
+            )
         else:
-            logger.error("이 운영 체제에서 Chrome 프로세스를 종료할 수 없습니다.")
+            logger.error(
+                "이 운영 체제에서 Chrome 프로세스를 종료할 수 없습니다."
+            )
             raise OSError("지원되지 않는 운영 체제입니다.")
     except subprocess.CalledProcessError as e:
-        logger.exception("Chrome 프로세스를 종료하는 도중 오류 발생", exc_info=e)
+        logger.exception(
+            "Chrome 프로세스를 종료하는 도중 오류 발생", exc_info=e
+        )
     else:
         logger.debug("Chrome 프로세스가 정상적으로 종료되었습니다.")
 

@@ -1,5 +1,5 @@
-import shutil
 import logging
+import shutil
 
 logging.basicConfig(
     level=logging.DEBUG,
