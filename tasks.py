@@ -2,7 +2,7 @@ import json
 import logging
 import sys
 
-from auth import get_authorization_code, get_access_token
+from auth import get_authorization_code
 from chrome import kill_chrome_processes, set_driver_with_recent_profile
 from steam import (
     get_shortcuts_vdf_path,
@@ -53,39 +53,6 @@ def task_authorization():
         print(f"USER_ID={user_id}")
 
 
-def task_access_token():
-    """
-    accessToken 파싱
-    """
-    logger.info("Access Token 요청 중...")
-    if len(sys.argv) < 5:
-        logger.error("Access Token 요청에 필요한 인자가 부족합니다.")
-        print("TASK_3=0")
-        sys.exit(1)
-
-    auth_code = sys.argv[2]
-    cookies_str = sys.argv[3]
-    input_code_verifier = sys.argv[4]
-
-    logger.debug(
-        f"auth_code={auth_code}, cookies_str={cookies_str}, code_verifier={input_code_verifier}"
-    )
-    cookies = {
-        c.split("=")[0].strip(): c.split("=")[1].strip()
-        for c in cookies_str.split("; ")
-        if "=" in c
-    }
-
-    access_token = get_access_token(auth_code, input_code_verifier, cookies)
-    if access_token is None:
-        logger.error("Access Token 획득 실패.")
-        print("TASK_3=0")
-    else:
-        logger.debug(f"Access Token 획득 성공: {access_token}")
-        print("TASK_3=1")
-        print(f"ACCESS_TOKEN={access_token}")
-
-
 def task_parse_steam_persona():
     """
     Steam 유저 데이터 파싱
@@ -95,16 +62,16 @@ def task_parse_steam_persona():
 
     if user_personas is None or {}:
         logger.error("Steam 유저 데이터 가져오기.")
-        print("TASK_4=0")
+        print("TASK_3=0")
     else:
         logger.debug(f"Steam 유저 데이터 가져오기 성공: {user_personas}")
-        print("TASK_4=1")
+        print("TASK_3=1")
         print("USER_PERSONAS=" + json.dumps(user_personas, ensure_ascii=False))
 
 
 def task_update_shortcuts():
     """
-    시작옵션에 accessToken 추가
+    시작 옵션에 access_token, user_id 추가
     """
     logger.info("Steam Shortcuts 업데이트 중...")
     if len(sys.argv) < 5:
@@ -128,12 +95,13 @@ def task_update_shortcuts():
         game_name="Path of Exile 2",
         launch_options=f"--kakao {access_token} {user_id}",
     )
+
     if result:
         logger.debug("Shortcuts 업데이트 성공.")
-        print("TASK_5=1")
+        print("TASK_4=1")
     else:
         logger.error("Shortcuts 업데이트 실패.")
-        print("TASK_5=0")
+        print("TASK_4=0")
 
 
 def task_kill_steam_and_restart():
@@ -146,10 +114,10 @@ def task_kill_steam_and_restart():
 
     if result:
         logger.debug("Steam 종료 후 재시작 성공.")
-        print("TASK_6=1")
+        print("TASK_5=1")
     else:
         logger.error("Steam 종료 후 재시작 실패.")
-        print("TASK_6=0")
+        print("TASK_5=0")
 
 
 if __name__ == "__main__":
@@ -160,8 +128,6 @@ if __name__ == "__main__":
         task_kill_chrome()
     elif task_name == "authorization":
         task_authorization()
-    elif task_name == "access_token":
-        task_access_token()
     elif task_name == "steam_persona":
         task_parse_steam_persona()
     elif task_name == "update_shortcuts":

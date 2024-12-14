@@ -20,15 +20,11 @@ logger = logging.getLogger(__name__)
 
 def kill_chrome_processes() -> None:
     """
-    현재 실행 중인 Chrome 프로세스를 종료
+    현재 실행 중인 Chrome 프로세스 종료
     """
     try:
         if is_command_available("killall"):
             subprocess.run(["killall", "chrome"], check=False)
-        elif is_command_available("taskkill"):
-            subprocess.run(
-                ["taskkill", "/F", "/IM", "chrome.exe"], check=False
-            )
         else:
             logger.error(
                 "이 운영 체제에서 Chrome 프로세스를 종료할 수 없습니다."
@@ -36,7 +32,7 @@ def kill_chrome_processes() -> None:
             raise OSError("지원되지 않는 운영 체제입니다.")
     except subprocess.CalledProcessError as e:
         logger.exception(
-            "Chrome 프로세스를 종료하는 도중 오류 발생", exc_info=e
+            "Chrome 프로세스를 종료하는 도중 오류 발생.", exc_info=e
         )
     else:
         logger.debug("Chrome 프로세스가 정상적으로 종료되었습니다.")
@@ -47,7 +43,7 @@ def get_recent_chrome_profile() -> str:
     최근 사용된 Chrome 프로필 경로를 반환
     """
     profile_base = os.path.expanduser("~/.config/google-chrome")
-    print(f"Chrome 프로필 경로: {profile_base}")
+    logger.debug(f"Chrome 프로필 경로: {profile_base}")
     return profile_base
 
 
@@ -61,5 +57,5 @@ def set_driver_with_recent_profile() -> webdriver.Chrome:
     service = Service("/usr/bin/chromedriver")
 
     driver = webdriver.Chrome(service=service, options=options)
-    print("Selenium WebDriver 초기화 완료.")
+    logger.debug("Selenium WebDriver 초기화 완료.")
     return driver

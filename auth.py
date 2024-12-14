@@ -2,12 +2,13 @@ import base64
 import hashlib
 import logging
 import os
-import time
-from typing import Tuple, Optional, Dict
+from typing import Tuple, Optional
 from urllib.parse import urlparse, parse_qs
 
 import requests
-from selenium import webdriver
+from selenium.webdriver.chrome.webdriver import WebDriver
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -18,12 +19,27 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+GAME_START_URL = "https://pubsvc.game.daum.net/gamestart/poe2.html"
+SECURITY_URL = "https://security-center.game.daum.net/auth"
+TOKEN_URL = "https://poe2-gamestart-web-api.game.daum.net/token/poe2"
+AUTH_URL_TEMPLATE = (
+    "https://poe.game.daum.net/oauth/authorize"
+    "?client_id=internal"
+    "&redirect_uri=https%3A%2F%2Fpoe2.game.daum.net%2Fkr/home"
+    "&response_type=internal"
+    "&scope=internal"
+    "&state=random_state_string"
+    "&code_challenge_method=S256&code_challenge={code_challenge}"
+)
+MAX_WAIT_TIME = 30
+POLL_FREQUENCY = 0.5
+
 
 def generate_code_verifier() -> str:
     """
-    code verifier 생성
+    code_verifier 생성
     """
-    verifier: str = (
+    verifier = (
         base64.urlsafe_b64encode(os.urandom(32)).rstrip(b"=").decode("utf-8")
     )
     logger.debug(f"생성된 code_verifier: {verifier}")
@@ -32,9 +48,9 @@ def generate_code_verifier() -> str:
 
 def generate_code_challenge(verifier: str) -> str:
     """
-    code challenge 생성
+    code_challenge 생성
     """
-    challenge: str = (
+    challenge = (
         base64.urlsafe_b64encode(
             hashlib.sha256(verifier.encode("utf-8")).digest()
         )
@@ -45,71 +61,38 @@ def generate_code_challenge(verifier: str) -> str:
     return challenge
 
 
-def process_user_security_auth(driver, session, url):
-    try:
-        driver.get(url)
+def set_cookies(session: requests.Session, cookies) -> None:
+    """
+    Selenium 쿠키를 requests 세션에 설정
+    """
+    for cookie in cookies:
+        session.cookies.set(cookie["name"], cookie["value"])
 
-        for _ in range(10):
-            time.sleep(3)
-            current_url: str = driver.current_url
-            logger.debug(
-                f"process_user_security_auth current_url: {current_url}"
-            )
-            if "https://security-center.game.daum.net/auth" in current_url:
-                logger.debug("security")
 
-                session = requests.Session()
-                selenium_cookies = driver.get_cookies()
-                for cookie in selenium_cookies:
-                    session.cookies.set(cookie["name"], cookie["value"])
-
-                while True:
-                    _current_url = driver.current_url
-                    logger.debug(f"_current_url: {_current_url}")
-
-                    if (
-                        "https://pubsvc.game.daum.net/gamestart/poe2.html"
-                        in _current_url
-                    ):
-                        parsed_url = urlparse(current_url)
-                        query_params = parse_qs(parsed_url.query)
-                        txid: Optional[str] = query_params.get("txId", [None])[
-                            0
-                        ]
-
-                        selenium_cookies = driver.get_cookies()
-                        for cookie in selenium_cookies:
-                            session.cookies.set(
-                                cookie["name"], cookie["value"]
-                            )
-
-                        logger.debug(
-                            f"_current_url 리다이렉트 감지: {_current_url}"
-                        )
-                        return get_access_token_and_user_id_from_api(
-                            driver, session, txid
-                        )
-
-                    time.sleep(0.5)
-        else:
-            logger.error("dasdssdaasddas")
-            return None, None
-    except Exception as e:
-        logger.error(f"token, mid 파싱 실패: {e}")
-    return None, None
+def create_session(driver: WebDriver) -> requests.Session:
+    """
+    세션 생성 및 쿠키 설정
+    """
+    session = requests.Session()
+    selenium_cookies = driver.get_cookies()
+    set_cookies(session, selenium_cookies)
+    return session
 
 
 def get_access_token_and_user_id_from_api(
-    driver, session, txid=None
+    driver: WebDriver, session: requests.Session, txid: Optional[str] = None
 ) -> Tuple[Optional[str], Optional[int]]:
     """
-    API를 통해 accessToken, userId 파싱
+    API를 통해 access_token, user_id 파싱
     """
     try:
-        url = "https://poe2-gamestart-web-api.game.daum.net/token/poe2?actionType=user"
+        url = f"{TOKEN_URL}?actionType=user"
         headers = {
             "accept": "application/json, text/plain, */*",
-            "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Whale/3.28.266.14 Safari/537.36",
+            "user-agent": (
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/128.0.0.0 Whale/3.28.266.14 Safari/537.36"
+            ),
             "referer": "https://pubsvc.game.daum.net/",
             "origin": "https://pubsvc.game.daum.net",
         }
@@ -117,210 +100,142 @@ def get_access_token_and_user_id_from_api(
         body = {
             "txId": txid,
             "code": None,
-            "webdriver": False if not txid else True,
+            "webdriver": bool(txid),
         }
 
-        logger.debug(f"body: {body}")
-        logger.debug(f"session cokkies: {session.cookies.get_dict()}")
+        logger.debug(f"Request body: {body}")
+        logger.debug(f"Session cookies: {session.cookies.get_dict()}")
 
         response = session.post(url, headers=headers, json=body)
-        if response.status_code == 200:
-            data = response.json()
-            logger.debug(f"data: {data}")
+        response.raise_for_status()
+        data = response.json()
+        logger.debug(f"Response data: {data}")
 
-            status = data.get("status")
-            if status == "NEED_SECURITYCENTER_AUTH":
-                url = data.get("url")
-                return process_user_security_auth(driver, session, url)
-
+        status = data.get("status")
+        if status == "NEED_SECURITYCENTER_AUTH":
+            url = data.get("url")
+            return process_user_security_auth(driver, session, url)
+        elif status == "PASS":
             token = data.get("token")
-            logger.info(f"API를 통해 token 파싱: {token}")
-
             mid = data.get("mid")
+            logger.info(f"API를 통해 token 파싱: {token}")
             logger.info(f"API를 통해 mid 파싱: {mid}")
             return token, mid
         else:
-            logger.error(f"API 요청 실패: {response.status_code}")
+            logger.error(f"예상치 못한 status: {status}")
+            return None, None
+    except requests.HTTPError as http_err:
+        logger.error(f"API 요청 실패: {http_err}")
+    except Exception as e:
+        logger.error(f"access_token, user_id 파싱 실패: {e}")
+    return None, None
+
+
+def wait_for_url_change(
+    driver: WebDriver, target_url: str, timeout: int = MAX_WAIT_TIME
+) -> bool:
+    """
+    특정 URL로의 변경을 기다림
+    """
+    try:
+        WebDriverWait(driver, timeout, POLL_FREQUENCY).until(
+            EC.url_contains(target_url)
+        )
+        return True
+    except:
+        return False
+
+
+def process_user_security_auth(
+    driver: WebDriver, session: requests.Session, url: str
+) -> Tuple[Optional[str], Optional[int]]:
+    """
+    사용자 보안 센터 인증 처리
+    """
+    try:
+        driver.get(url)
+        logger.debug("유저 인증 진행 중...")
+
+        if wait_for_url_change(driver, SECURITY_URL):
+            selenium_cookies = driver.get_cookies()
+            set_cookies(session, selenium_cookies)
+
+            if wait_for_url_change(driver, GAME_START_URL):
+                current_url = driver.current_url
+                logger.debug(f"유저 인증 완료: {current_url}")
+
+                parsed_url = urlparse(current_url)
+                query_params = parse_qs(parsed_url.query)
+                txid = query_params.get("txId", [None])[0]
+
+                selenium_cookies = driver.get_cookies()
+                set_cookies(session, selenium_cookies)
+
+                logger.debug(f"리다이렉트 감지: {current_url}")
+                return get_access_token_and_user_id_from_api(
+                    driver, session, txid
+                )
+        else:
+            logger.error("유저 인증 실패")
+            return None, None
     except Exception as e:
         logger.error(f"token, mid 파싱 실패: {e}")
     return None, None
 
 
-def get_user_id_from_api(cookies: Dict[str, str]) -> Optional[int]:
+def process_user_auth(
+    driver: WebDriver, session: requests.Session
+) -> Tuple[Optional[str], Optional[int]]:
     """
-    API를 통해 userId를 파싱
+    사용자 인증 처리
     """
     try:
-        url = "https://svc-api.game.daum.net/analytics/ga/info"
-        headers = {
-            "accept": "application/json, text/plain, */*",
-            "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Whale/3.28.266.14 Safari/537.36",
-            "referer": "https://poe2.game.daum.net/",
-            "origin": "https://poe2.game.daum.net",
-            "cookie": "; ".join(
-                [f"{key}={value}" for key, value in cookies.items()]
-            ),
-        }
+        driver.get(GAME_START_URL)
+        logger.debug("유저 인증 페이지 로드 중...")
 
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            data = response.json()
-            user_id = data.get("userId")
-            logger.info(f"API를 통해 userId 파싱: {user_id}")
-            return user_id
+        if wait_for_url_change(driver, GAME_START_URL):
+            current_url = driver.current_url
+            logger.debug(f"current_url-1: {current_url}")
+
+            if GAME_START_URL in current_url:
+                # 이미 인증 마친 상태, 혹은 카카오 인증으로 인증 필요로 하는 상태
+                logger.debug("유저 인증 완료 혹은 카카오 인증 필요")
+                return get_access_token_and_user_id_from_api(driver, session)
+            elif SECURITY_URL in current_url:
+                # 인증 필요 상태
+                logger.debug("유저 인증 필요")
+                return process_user_security_auth(driver, session, current_url)
         else:
-            logger.error(f"API 요청 실패: {response.status_code}")
+            logger.error("유저 인증 실패")
+            return None, None
     except Exception as e:
-        logger.error(f"userId 파싱 실패: {e}")
-    return None
-
-
-def process_user_auth(driver):
-    url = "https://pubsvc.game.daum.net/gamestart/poe2.html?actionType=user"
-    driver.get(url)
-
-    for _ in range(10):
-        time.sleep(3)
-        current_url: str = driver.current_url
-        logger.debug(f"current_url: {current_url}")
-
-        if "https://pubsvc.game.daum.net/gamestart/poe2.html" in current_url:
-            session = requests.Session()
-            selenium_cookies = driver.get_cookies()
-            for cookie in selenium_cookies:
-                session.cookies.set(cookie["name"], cookie["value"])
-            logger.debug("pubsvc")
-
-            return get_access_token_and_user_id_from_api(driver, session)
-        elif "https://security-center.game.daum.net/auth" in current_url:
-            logger.debug("security")
-
-            session = requests.Session()
-            selenium_cookies = driver.get_cookies()
-            for cookie in selenium_cookies:
-                session.cookies.set(cookie["name"], cookie["value"])
-
-            while True:
-                _current_url = driver.current_url
-                logger.debug(f"_current_url: {_current_url}")
-
-                if (
-                    "https://pubsvc.game.daum.net/gamestart/poe2.html"
-                    in _current_url
-                ):
-                    parsed_url = urlparse(current_url)
-                    query_params = parse_qs(parsed_url.query)
-                    txid: Optional[str] = query_params.get("txId", [None])[0]
-
-                    selenium_cookies = driver.get_cookies()
-                    for cookie in selenium_cookies:
-                        session.cookies.set(cookie["name"], cookie["value"])
-
-                    logger.debug(
-                        f"_current_url 리다이렉트 감지: {_current_url}"
-                    )
-                    return get_access_token_and_user_id_from_api(
-                        driver, session, txid
-                    )
-
-                time.sleep(0.5)
-    else:
-        logger.error("dasdssdaasddas")
-        return False
+        logger.error(f"사용자 인증 처리 중 오류 발생: {e}")
+    return None, None
 
 
 def get_authorization_code(
-    driver: webdriver.Chrome,
+    driver: WebDriver,
 ) -> Tuple[Optional[str], Optional[int]]:
     """
-    authCode, cookie, userId 파싱
+    access_token, user_id 파싱
     """
-    logger.info("Code verifier와 Code challenge 생성")
-    code_verifier: str = generate_code_verifier()
-    code_challenge: str = generate_code_challenge(code_verifier)
+    try:
+        logger.info("code_verifier와 code_challenge 생성")
+        code_verifier = generate_code_verifier()
+        code_challenge = generate_code_challenge(code_verifier)
 
-    AUTH_URL = (
-        "https://poe.game.daum.net/oauth/authorize"
-        f"?client_id=internal"
-        "&redirect_uri=https%3A%2F%2Fpoe2.game.daum.net%2Fkr/home"
-        "&response_type=internal"
-        "&scope=internal"
-        "&state=random_state_string"
-        f"&code_challenge_method=S256&code_challenge={code_challenge}"
-    )
+        auth_url = AUTH_URL_TEMPLATE.format(code_challenge=code_challenge)
+        logger.info("Authorization Code 획득을 위한 페이지 로딩 중...")
+        driver.get(auth_url)
 
-    logger.info("Authorization Code 획득을 위한 페이지 로딩 중...")
-    driver.get(AUTH_URL)
-
-    while True:
-        current_url: str = driver.current_url
-        if "https://poe2.game.daum.net/kr/home" in current_url:
+        if wait_for_url_change(driver, "https://poe2.game.daum.net/kr/home"):
+            current_url = driver.current_url
             logger.debug(f"리다이렉트 감지: {current_url}")
-            return process_user_auth(driver)
-        time.sleep(1)
-
-    parsed_url = urlparse(current_url)
-    query_params = parse_qs(parsed_url.query)
-    auth_code: Optional[str] = query_params.get("code", [None])[0]
-    if not auth_code:
-        logger.error("Authorization Code를 찾을 수 없습니다.")
-        return None, None, code_verifier, code_challenge, None
-
-    logger.debug(f"획득한 Authorization Code: {auth_code}")
-
-    selenium_cookies = driver.get_cookies()
-    session_cookies = {
-        cookie["name"]: cookie["value"] for cookie in selenium_cookies
-    }
-    logger.debug(f"획득한 쿠키: {session_cookies}")
-
-    # get_user_id_from_api(session_cookies)
-
-    access_token, user_id = get_access_token_and_user_id_from_api(
-        session_cookies
-    )
-
-    return access_token, user_id
-
-
-def get_access_token(
-    auth_code: str, code_verifier: str, cookies: Dict[str, str]
-) -> Optional[str]:
-    """
-    accessToken 파싱
-    """
-    logger.info("Access Token 요청 중...")
-    token_url = "https://poe2.game.daum.net/oauth/token"
-    payload = {
-        "client_id": "internal",
-        "grant_type": "internal",
-        "code": auth_code,
-        "code_verifier": code_verifier,
-    }
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Cookie": "; ".join(
-            [f"{key}={value}" for key, value in cookies.items()]
-        ),
-    }
-
-    logger.debug(f"Access Token 요청 Payload: {payload}")
-    logger.debug(f"Access Token 요청 Headers: {headers}")
-
-    response = requests.post(
-        token_url, data=payload, headers=headers, verify=False
-    )
-    logger.debug(f"Access Token 요청 응답 코드: {response.status_code}")
-    logger.debug(f"Access Token 요청 응답: {response.text}")
-
-    if response.status_code == 200:
-        access_token = response.json().get("access_token")
-        if access_token:
-            logger.debug(f"Access Token 획득 성공: {access_token}")
-            return access_token
+            session = create_session(driver)
+            return process_user_auth(driver, session)
         else:
-            logger.error("응답에 Access Token이 없습니다.")
-    else:
-        logger.error("Access Token 획득 실패")
-
-    return None
+            logger.error("Authorization Code 획득 실패")
+            return None, None
+    except Exception as e:
+        logger.error(f"Authorization Code 획득 중 오류 발생: {e}")
+    return None, None
