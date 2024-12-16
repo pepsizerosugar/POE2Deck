@@ -6,16 +6,19 @@
 * 카카오게임즈 Path Of Exile 2를 **❗이미 설치❗**하고 플레이 하고 있는 유저를 대상으로 합니다.
     * 혹은 **게임을 설치까지 한 경우**도 사용할 수 있습니다.
     * **이 도구는 카카오게임즈 Path Of Exile 2의 설치 도구가 아닙니다.**
+<br>
 
 ## Features
 
 - **실행 옵션 입력 (일부)자동화**: 게임 실행에 필요한 인증 토큰과 유저 아이디를 자동으로 파싱하고 설정합니다.
+<br>
 
 ## 0. Change Log
 
 ### 1.0.0 (2024.12.14)
 
 - Initial release
+<br>
 
 ## 1. Getting Started
 
@@ -29,6 +32,7 @@
    <img src="./resources/1. 압축 풀기.png" alt="">
    <br>
 5. 압축 풀기.
+<br>
 
 ### 1-2. How to Use
 
@@ -48,6 +52,7 @@
     1. **Run Tasks**: 인증 토큰과 유저 아이디 설정 자동화 실행.
     2. **Show log**: 작업 로그 보기.
     3. **Quit**: 프로그램 종료.
+<br>
 
 ### 2. Run Tasks
 
@@ -93,6 +98,7 @@
                        <img src="./resources/11. 호환.png" alt="">
                        <br>
 7. 완료 창을 닫고 `Quit` 옵션을 선택하여 프로그램 종료.
+<br>
 
 ### 3. Show log
 
